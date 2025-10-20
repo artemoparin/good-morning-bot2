@@ -2,17 +2,30 @@ name: Send Telegram Message
 
 on:
   schedule:
-    # Запускать каждый день в 05:00 UTC (8:00 по Москве)
+    # Утреннее сообщение в 05:00 UTC (08:00 по Москве)
     - cron: '0 5 * * *'
-    # Запускать каждый день в 21:00 UTC (00:00 по Москве)
+    # Вечернее сообщение в 21:00 UTC (00:00 по Москве)
     - cron: '0 21 * * *'
   workflow_dispatch:
+    inputs:
+      message-type:
+        description: 'Выберите тип сообщения'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+        - morning
+        - evening
+        - test
 
 jobs:
   send-message:
     runs-on: ubuntu-latest
     steps:
     - name: Send Morning Message
+      if: |
+        github.event.schedule == '0 5 * * *' ||
+        github.event.inputs.message-type == 'morning'
       run: |
         echo "Отправляем утреннее сообщение..."
         curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
@@ -20,11 +33,27 @@ jobs:
           -d text="Доброе утро, любимая! ☀️ Пусть твой день будет наполнен улыбками и радостью! 💖"
         echo "Утреннее сообщение отправлено!"
 
-    - name: Send Good Night Message
+    - name: Send Evening Message
+      if: |
+        github.event.schedule == '0 21 * * *' ||
+        github.event.inputs.message-type == 'evening'
       run: |
-        echo "Отправляем ночное сообщение..."
+        echo "Отправляем вечернее сообщение..."
         sleep 2
         curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
           -d chat_id=${{ secrets.CHAT_ID }} \
           -d text="Спокойной ночи, моя прекрасная! 💫 Пусть тебе снятся самые сладкие сны. 💕"
-        echo "Ночное сообщение отправлено!"
+        echo "Вечернее сообщение отправлено!"
+
+    - name: Send Test Messages
+      if: github.event.inputs.message-type == 'test'
+      run: |
+        echo "Отправляем ТЕСТОВЫЕ сообщения (оба)..."
+        curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.CHAT_ID }} \
+          -d text="🔄 ТЕСТ: Доброе утро, любимая! ☀️"
+        sleep 2
+        curl -s -X POST https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.CHAT_ID }} \
+          -d text="🔄 ТЕСТ: Спокойной ночи, моя прекрасная! 💫"
+        echo "Тестовые сообщения отправлены!"
